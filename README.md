@@ -47,3 +47,17 @@ A instalação não é silenciosa: o Android controla a instalação e pode pedi
 ## Arquitetura
 
 A base separa armazenamento, operações, arquivos compactados, preferências e atualização. Está preparada para receber TAR/GZIP/7Z, palavras-passe, dividir arquivos, fila de operações, lixeira, análise de armazenamento, armazenamento externo e visualizadores avançados.
+
+
+## APK Release
+
+Mesmo sem os quatro Secrets de assinatura, o workflow consegue gerar um **APK Release instalável para testes**, usando a chave debug do Android.
+
+Para distribuição pública e para garantir que atualizações futuras instalem por cima da versão anterior, configure uma chave de assinatura Nexauren persistente nos quatro Secrets:
+
+ANDROID_KEYSTORE_BASE64
+ANDROID_KEYSTORE_PASSWORD
+ANDROID_KEY_ALIAS
+ANDROID_KEY_PASSWORD
+
+Sem esses Secrets, o APK é adequado para testes. A assinatura persistente deve ser configurada antes de distribuir uma versão pública com atualização por cima.
