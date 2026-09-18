@@ -6,7 +6,7 @@ import androidx.documentfile.provider.DocumentFile
 import com.nexauren.file.model.FileItem
 import java.io.IOException
 
-class StorageRepository(context: Context) {
+class StorageRepository(private val context: Context) {
     private val resolver: ContentResolver = context.contentResolver
 
     fun fromUri(uri: String): DocumentFile? =
@@ -18,7 +18,7 @@ class StorageRepository(context: Context) {
             FileItem(it, it.name ?: "(sem nome)", it.uri.toString(), it.isDirectory,
                 if (it.isFile) it.length() else 0L, it.lastModified())
         }.sortedWith(compareBy<FileItem> { !it.isDirectory }
-            .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name })
+            .thenBy { it.name.lowercase() })
 
     fun createDirectory(parent: DocumentFile, name: String): DocumentFile? =
         parent.findFile(name)?.takeIf { it.isDirectory } ?: parent.createDirectory(name)
