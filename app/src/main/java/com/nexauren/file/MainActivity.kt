@@ -459,7 +459,7 @@ private fun NexaurenFileApp() {
                     Text(info.releaseName)
                     Text(if (info.notes.isBlank()) "Nova versão disponível." else info.notes.take(1400))
                     if (downloadingUpdate) {
-                        LinearProgressIndicator(progress = { updateProgress / 100f }, Modifier.fillMaxWidth())
+                        LinearProgressIndicator(progress = { updateProgress / 100f }, modifier = Modifier.fillMaxWidth())
                         Text("A descarregar: " + updateProgress + "%")
                     }
                 }
@@ -617,7 +617,7 @@ private fun NexaurenFileApp() {
                     if (progress.total > 0) {
                         LinearProgressIndicator(
                             progress = { progress.current.toFloat() / progress.total.toFloat() },
-                            Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
