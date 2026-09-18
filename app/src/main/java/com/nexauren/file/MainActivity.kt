@@ -38,7 +38,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Rename
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -835,7 +835,7 @@ private fun MoreMenu(
         IconButton(onClick = { open = true }) { Icon(Icons.Default.MoreVert, "Mais") }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(text = { Text("Renomear") }, onClick = { open = false; onRename() },
-                leadingIcon = { Icon(Icons.Default.Rename, null) })
+                leadingIcon = { Icon(Icons.Default.Edit, null) })
             DropdownMenuItem(text = { Text("Partilhar") }, onClick = { open = false; onShare() },
                 leadingIcon = { Icon(Icons.Default.Share, null) })
             DropdownMenuItem(text = { Text("Informações") }, onClick = { open = false; onInfo() },
