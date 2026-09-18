@@ -5,6 +5,11 @@ on:
     branches: ["main"]
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Tag para criar uma GitHub Release, por exemplo v1.0.0"
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -20,7 +25,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -36,7 +41,7 @@ jobs:
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > "${{ github.workspace }}/nexauren-release.jks"
 
-      - name: Build signed release
+      - name: Build Release APK with persistent signing
         if: env.HAS_SIGNING == 'true'
         run: gradle :app:assembleRelease
         env:
@@ -45,19 +50,29 @@ jobs:
           NEXAUREN_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           NEXAUREN_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
-      - name: Build unsigned release
+      - name: Build Release APK with temporary debug signing
         if: env.HAS_SIGNING != 'true'
         run: gradle :app:assembleRelease
 
-      - name: Upload APK artifact
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: nexauren-file-apk
+          name: nexauren-file-release-apk
           path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
 
-      - name: Publish GitHub Release
+      - name: Publish tagged GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: app/build/outputs/apk/release/app-release.apk
           generate_release_notes: true
+
+      - name: Publish manually requested GitHub Release
+        if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          gh release create "$RELEASE_TAG"             app/build/outputs/apk/release/app-release.apk             --title "Nexauren File $RELEASE_TAG"             --generate-notes
