@@ -29,8 +29,12 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            if (!keystorePath.isNullOrBlank()) {
-                signingConfig = signingConfigs.getByName("nexaurenRelease")
+            signingConfig = if (!keystorePath.isNullOrBlank()) {
+                signingConfigs.getByName("nexaurenRelease")
+            } else {
+                // Temporary installable fallback for development builds.
+                // Configure the persistent Nexauren keystore before public distribution.
+                signingConfigs.getByName("debug")
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
