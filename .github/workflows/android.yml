@@ -12,6 +12,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      HAS_SIGNING: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
 
     steps:
       - name: Checkout
@@ -29,13 +31,13 @@ jobs:
           gradle-version: "8.9"
 
       - name: Create signing file
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        if: env.HAS_SIGNING == 'true'
         shell: bash
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > "${{ github.workspace }}/nexauren-release.jks"
 
       - name: Build signed release
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        if: env.HAS_SIGNING == 'true'
         run: gradle :app:assembleRelease
         env:
           NEXAUREN_KEYSTORE_PATH: ${{ github.workspace }}/nexauren-release.jks
@@ -44,7 +46,7 @@ jobs:
           NEXAUREN_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
       - name: Build unsigned release
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 == '' }}
+        if: env.HAS_SIGNING != 'true'
         run: gradle :app:assembleRelease
 
       - name: Upload APK artifact
