@@ -312,7 +312,37 @@ private fun NexaurenFileApp() {
                     onOpen = {
                         if (current == null) chooseFolder.launch(null) else screen = Screen.FILES
                     },
-                    onChoose = { chooseFolder.launch(null) }
+                    onChoose = { chooseFolder.launch(null) },
+                    onFavorites = {
+                        items = prefs.getFavorites().mapNotNull { uri ->
+                            storage.fromUri(uri)?.let { file ->
+                                FileItem(
+                                    file,
+                                    file.name ?: "(sem nome)",
+                                    uri,
+                                    file.isDirectory,
+                                    if (file.isFile) file.length() else 0L,
+                                    file.lastModified()
+                                )
+                            }
+                        }
+                        screen = Screen.FILES
+                    },
+                    onRecents = {
+                        items = prefs.getRecents().mapNotNull { uri ->
+                            storage.fromUri(uri)?.let { file ->
+                                FileItem(
+                                    file,
+                                    file.name ?: "(sem nome)",
+                                    uri,
+                                    file.isDirectory,
+                                    if (file.isFile) file.length() else 0L,
+                                    file.lastModified()
+                                )
+                            }
+                        }
+                        screen = Screen.FILES
+                    }
                 )
 
                 Screen.FILES -> FilesScreen(
@@ -642,7 +672,9 @@ private fun HomeScreen(
     favoriteCount: Int,
     recentCount: Int,
     onOpen: () -> Unit,
-    onChoose: () -> Unit
+    onChoose: () -> Unit,
+    onFavorites: () -> Unit,
+    onRecents: () -> Unit
 ) {
     LazyColumn(
         Modifier.fillMaxSize().padding(20.dp),
@@ -675,8 +707,8 @@ private fun HomeScreen(
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                MiniStat("Favoritos", favoriteCount, Modifier.weight(1f))
-                MiniStat("Recentes", recentCount, Modifier.weight(1f))
+                MiniStat("Favoritos", favoriteCount, Modifier.weight(1f), onFavorites)
+                MiniStat("Recentes", recentCount, Modifier.weight(1f), onRecents)
             }
         }
         item { Text("Principais funções", fontWeight = FontWeight.Bold) }
@@ -691,8 +723,8 @@ private fun HomeScreen(
 }
 
 @androidx.compose.runtime.Composable
-private fun MiniStat(title: String, value: Int, modifier: Modifier) {
-    Card(modifier) {
+private fun MiniStat(title: String, value: Int, modifier: Modifier, onClick: () -> Unit) {
+    Card(modifier.clickable(onClick = onClick)) {
         Column(Modifier.padding(16.dp)) {
             Text(value.toString(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(title)
