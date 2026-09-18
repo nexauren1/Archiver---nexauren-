@@ -757,7 +757,7 @@ private fun FilesScreen(
     var sortOpen by remember { mutableStateOf(false) }
 
     val sortedItems = when (sortMode) {
-        SortMode.NAME -> items.sortedWith(compareBy<FileItem> { !it.isDirectory }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name })
+        SortMode.NAME -> items.sortedWith(compareBy<FileItem> { !it.isDirectory }.thenBy { it.name.lowercase() })
         SortMode.SIZE -> items.sortedByDescending { it.size }
         SortMode.DATE -> items.sortedByDescending { it.modified }
         SortMode.TYPE -> items.sortedBy { it.name.substringAfterLast('.', "").lowercase() }
