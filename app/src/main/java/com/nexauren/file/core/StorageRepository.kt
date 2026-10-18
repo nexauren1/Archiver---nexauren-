@@ -2,16 +2,27 @@ package com.nexauren.file.core
 
 import android.content.ContentResolver
 import android.content.Context
+import android.net.Uri
+import android.os.Environment
 import androidx.documentfile.provider.DocumentFile
 import com.nexauren.file.model.FileItem
+import java.io.File
 import java.io.IOException
 
 class StorageRepository(private val context: Context) {
     private val resolver: ContentResolver = context.contentResolver
 
-    fun fromUri(uri: String): DocumentFile? =
-        DocumentFile.fromTreeUri(context, android.net.Uri.parse(uri))
-            ?: DocumentFile.fromSingleUri(context, android.net.Uri.parse(uri))
+    fun defaultRoot(): DocumentFile =
+        DocumentFile.fromFile(Environment.getExternalStorageDirectory())
+
+    fun fromUri(uri: String): DocumentFile? {
+        val parsed = Uri.parse(uri)
+        if (parsed.scheme == "file" && !parsed.path.isNullOrBlank()) {
+            return DocumentFile.fromFile(File(parsed.path!!))
+        }
+        return DocumentFile.fromTreeUri(context, parsed)
+            ?: DocumentFile.fromSingleUri(context, parsed)
+    }
 
     fun list(directory: DocumentFile): List<FileItem> =
         directory.listFiles().map {
