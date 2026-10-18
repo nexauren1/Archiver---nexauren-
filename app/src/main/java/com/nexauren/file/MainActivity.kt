@@ -3,12 +3,16 @@ package com.nexauren.file
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.Manifest
 import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -93,6 +97,7 @@ import com.nexauren.file.ui.NexaurenFileTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.text.DateFormat
 import java.util.Date
 
@@ -119,7 +124,7 @@ private fun NexaurenFileApp() {
     val archiveManager = remember { ArchiveManager(storage) }
     val scope = rememberCoroutineScope()
 
-    var screen by remember { mutableStateOf(Screen.HOME) }
+    var screen by remember { mutableStateOf(Screen.FILES) }
     var root by remember { mutableStateOf<DocumentFile?>(null) }
     var current by remember { mutableStateOf<DocumentFile?>(null) }
     val stack = remember { mutableStateListOf<DocumentFile>() }
@@ -141,6 +146,46 @@ private fun NexaurenFileApp() {
     var checkingUpdate by remember { mutableStateOf(false) }
     var downloadingUpdate by remember { mutableStateOf(false) }
     var updateProgress by remember { mutableStateOf(0) }
+    var hasStoragePermission by remember { mutableStateOf(hasBroadStorageAccess(context)) }
+
+    val systemStoragePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        hasStoragePermission = hasBroadStorageAccess(context)
+    }
+    val legacyStoragePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        hasStoragePermission = hasBroadStorageAccess(context)
+    }
+
+    fun requestStoragePermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val appSettings = Intent(
+                Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                Uri.parse("package:${context.packageName}")
+            )
+            try {
+                systemStoragePermissionLauncher.launch(appSettings)
+            } catch (_: ActivityNotFoundException) {
+                systemStoragePermissionLauncher.launch(
+                    Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                )
+            }
+        } else {
+            legacyStoragePermissionLauncher.launch(
+                arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            )
+        }
+    }
+
+    fun uriForSharing(file: DocumentFile): Uri {
+        val uri = file.uri
+        val path = uri.path
+        return if (uri.scheme == "file" && path != null) {
+            FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", File(path))
+        } else uri
+    }
 
     val chooseFolder = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
@@ -187,7 +232,7 @@ private fun NexaurenFileApp() {
         prefs.addRecent(item.uri)
         try {
             val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(item.file.uri, item.file.type ?: "application/octet-stream")
+                setDataAndType(uriForSharing(item.file), item.file.type ?: "application/octet-stream")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             context.startActivity(intent)
@@ -201,22 +246,23 @@ private fun NexaurenFileApp() {
         val file = storage.fromUri(uri) ?: return
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = file.type ?: "application/octet-stream"
-            putExtra(Intent.EXTRA_STREAM, file.uri)
+            putExtra(Intent.EXTRA_STREAM, uriForSharing(file))
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(Intent.createChooser(intent, "Partilhar"))
     }
 
-    LaunchedEffect(Unit) {
-        prefs.getRootUri()?.let { saved ->
-            val dir = storage.fromUri(saved)
-            if (dir != null) {
-                root = dir
-                current = dir
-                stack.clear()
-                stack.add(dir)
-                items = storage.list(dir)
-            }
+    LaunchedEffect(hasStoragePermission) {
+        if (hasStoragePermission) {
+            // Open the shared storage root by default instead of requiring a one-folder SAF grant.
+            val dir = storage.defaultRoot()
+            root = dir
+            current = dir
+            stack.clear()
+            stack.add(dir)
+            items = storage.list(dir)
+            prefs.setRootUri(dir.uri.toString())
+            screen = Screen.FILES
         }
     }
 
@@ -231,6 +277,11 @@ private fun NexaurenFileApp() {
         }
     }
 
+    if (!hasStoragePermission) {
+        StorageAccessScreen(onGrantAccess = ::requestStoragePermission)
+        return
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -243,6 +294,11 @@ private fun NexaurenFileApp() {
                             placeholder = { Text("Pesquisar ficheiros") },
                             modifier = Modifier.fillMaxWidth().padding(end = 8.dp)
                         )
+                    } else if (screen == Screen.FILES) {
+                        Column {
+                            Text(current?.name ?: "Armazenamento interno", fontWeight = FontWeight.Bold, maxLines = 1)
+                            Text(current?.uri?.path ?: "/storage/emulated/0", style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                        }
                     } else {
                         Text("Nexauren File", fontWeight = FontWeight.Bold)
                     }
@@ -286,7 +342,7 @@ private fun NexaurenFileApp() {
                 NavigationBarItem(
                     selected = screen == Screen.FILES,
                     onClick = {
-                        if (current == null) chooseFolder.launch(null) else screen = Screen.FILES
+                        if (current == null) requestStoragePermission() else screen = Screen.FILES
                     },
                     icon = { Icon(Icons.Default.Folder, null) },
                     label = { Text("Ficheiros") }
@@ -310,7 +366,7 @@ private fun NexaurenFileApp() {
                     favoriteCount = prefs.getFavorites().size,
                     recentCount = prefs.getRecents().size,
                     onOpen = {
-                        if (current == null) chooseFolder.launch(null) else screen = Screen.FILES
+                        if (current == null) requestStoragePermission() else screen = Screen.FILES
                     },
                     onChoose = { chooseFolder.launch(null) },
                     onFavorites = {
@@ -447,6 +503,7 @@ private fun NexaurenFileApp() {
                 Screen.SETTINGS -> SettingsScreen(
                     version = UpdateManager.CURRENT_VERSION,
                     onChooseFolder = { chooseFolder.launch(null) },
+                    onManageStorage = ::requestStoragePermission,
                     onCheckUpdate = {
                         checkingUpdate = true
                         scope.launch {
@@ -693,14 +750,14 @@ private fun HomeScreen(
         item {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(if (hasStorage) "Armazenamento configurado" else "Comece por escolher uma pasta")
+                    Text(if (hasStorage) "Armazenamento interno disponível" else "Conceda acesso ao armazenamento")
                     Button(onClick = onOpen, Modifier.fillMaxWidth()) {
                         Icon(Icons.Default.Folder, null)
                         Spacer(Modifier.width(8.dp))
-                        Text(if (hasStorage) "Abrir ficheiros" else "Selecionar armazenamento")
+                        Text("Abrir ficheiros")
                     }
                     OutlinedButton(onClick = onChoose, Modifier.fillMaxWidth()) {
-                        Text("Alterar pasta principal")
+                        Text("Escolher pasta específica (opcional)")
                     }
                 }
             }
@@ -888,6 +945,7 @@ private fun FileRow(
 private fun SettingsScreen(
     version: String,
     onChooseFolder: () -> Unit,
+    onManageStorage: () -> Unit,
     onCheckUpdate: () -> Unit,
     onAbout: () -> Unit
 ) {
@@ -902,8 +960,9 @@ private fun SettingsScreen(
             Card {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Armazenamento", fontWeight = FontWeight.Bold)
-                    Text("Escolha a pasta principal que o Nexauren File pode gerir.")
-                    OutlinedButton(onClick = onChooseFolder) { Text("Alterar pasta") }
+                    Text("O explorador abre por defeito o armazenamento partilhado do dispositivo. O acesso pode ser revisto nas definições especiais do Android.")
+                    Button(onClick = onManageStorage) { Text("Gerir permissão de armazenamento") }
+                    OutlinedButton(onClick = onChooseFolder) { Text("Escolher uma pasta específica (opcional)") }
                 }
             }
         }
