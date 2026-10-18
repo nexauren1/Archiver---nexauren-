@@ -4,7 +4,9 @@ Aplicação Android de gestão de ficheiros da Nexauren, criada de raiz com iden
 
 ## Primeira versão
 
-- Navegação por pastas com Storage Access Framework
+- Abertura direta do armazenamento partilhado do dispositivo por defeito
+- Permissão especial `MANAGE_EXTERNAL_STORAGE` em Android 11+
+- Seletor de pasta específica continua disponível como opção
 - Seleção múltipla
 - Copiar, mover e colar
 - Renomear e eliminar
@@ -16,11 +18,20 @@ Aplicação Android de gestão de ficheiros da Nexauren, criada de raiz com iden
 - Abrir ficheiros com a aplicação compatível instalada
 - Criar e extrair ZIP
 - Barra de progresso das operações
-- Interface Android moderna e clara
+- Interface Android nativa em Kotlin + Jetpack Compose
+- Tema escuro inspirado em gestores de arquivos, com acentos âmbar
+- Ícone adaptativo próprio para o ecrã inicial
+- Ecrã de explicação e encaminhamento para as permissões do Android
 - Funcionamento local/offline das operações de ficheiros
 - Verificação de atualização dentro de Definições
 - Download do APK de uma GitHub Release
 - Instalação através do instalador oficial do Android
+
+## Acesso ao armazenamento
+
+Em Android 11 e superior, o primeiro arranque pede ao utilizador que ative **Permitir gerir todos os ficheiros** nas definições do Android. Depois de concedido o acesso, o explorador abre `/storage/emulated/0` por defeito, sem exigir a seleção manual de uma única pasta. O seletor do Storage Access Framework permanece disponível para selecionar uma pasta específica quando necessário.
+
+O acesso especial não ultrapassa as restrições do Android a diretórios privados de outras aplicações, incluindo grande parte de `Android/data`. A publicação na Google Play também está sujeita à política da loja para `MANAGE_EXTERNAL_STORAGE`.
 
 ## Sistema de atualização
 
